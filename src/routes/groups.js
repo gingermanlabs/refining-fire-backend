@@ -204,7 +204,7 @@ router.patch('/:groupId/todos/:todoId/toggle', async (req, res) => {
 router.get('/:groupId/prayer-requests', async (req, res) => {
   try {
     const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id })
-      .populate('prayerRequests.userId', 'displayName username avatarURL');
+      .populate('prayerRequests.userId', '_id displayName username avatarURL');
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
     if (!group.prayerRequests) group.prayerRequests = [];
@@ -239,7 +239,7 @@ router.post('/:groupId/prayer-requests', async (req, res) => {
       req.params.groupId,
       { $push: { prayerRequests: { userId: req.user._id, message: message.trim() } } },
       { new: true }
-    ).populate('prayerRequests.userId', 'displayName username avatarURL');
+    ).populate('prayerRequests.userId', '_id displayName username avatarURL');
     const requests = updatedGroup.prayerRequests.map(r => ({
       _id: r._id,
       userId: r.userId._id,
@@ -274,7 +274,7 @@ router.delete('/:groupId/prayer-requests/:requestId', async (req, res) => {
     request.deleteOne();
     await group.save();
 
-    await group.populate('prayerRequests.userId', 'displayName username avatarURL');
+    await group.populate('prayerRequests.userId', '_id displayName username avatarURL');
     const requests = group.prayerRequests.map(r => ({
       _id: r._id,
       userId: r.userId._id,
