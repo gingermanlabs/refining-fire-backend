@@ -237,8 +237,9 @@ router.post('/:groupId/prayer-requests', async (req, res) => {
     group.prayerRequests.push({ userId: req.user._id, message: message.trim() });
     await group.save();
 
-    await group.populate('prayerRequests.userId', 'displayName username avatarURL');
-    const requests = group.prayerRequests.map(r => ({
+    const updatedGroup = await Group.findById(req.params.groupId)
+      .populate('prayerRequests.userId', 'displayName username avatarURL');
+    const requests = updatedGroup.prayerRequests.map(r => ({
       _id: r._id,
       userId: r.userId._id,
       message: r.message,
