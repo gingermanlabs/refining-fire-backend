@@ -235,12 +235,11 @@ router.post('/:groupId/prayer-requests', async (req, res) => {
     const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id });
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
-    if (!group.prayerRequests) group.prayerRequests = [];
-    group.prayerRequests.push({ userId: req.user._id, message: message.trim() });
-    await group.save();
-
-    const updatedGroup = await Group.findById(req.params.groupId)
-      .populate('prayerRequests.userId', 'displayName username avatarURL');
+    const updatedGroup = await Group.findByIdAndUpdate(
+      req.params.groupId,
+      { $push: { prayerRequests: { userId: req.user._id, message: message.trim() } } },
+      { new: true }
+    ).populate('prayerRequests.userId', 'displayName username avatarURL');
     const requests = updatedGroup.prayerRequests.map(r => ({
       _id: r._id,
       userId: r.userId._id,
