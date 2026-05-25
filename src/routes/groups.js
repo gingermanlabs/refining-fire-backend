@@ -200,46 +200,91 @@ router.patch('/:groupId/todos/:todoId/toggle', async (req, res) => {
   }
 });
 
-// PATCH /api/groups/:groupId/todos/:todoId/note — save/update current user's note on a group todo
-router.patch('/:groupId/todos/:todoId/note', async (req, res) => {
+// GET /api/groups/:groupId/prayer-requests
+router.get('/:groupId/prayer-requests', async (req, res) => {
   try {
-    const { note } = req.body;
-    if (note === undefined) return res.status(400).json({ message: 'note is required.' });
-
-    const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id });
+    const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id })
+      .populate('prayerRequests.userId', 'displayName username avatarURL');
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
-    const item = group.todoItems.id(req.params.todoId);
-    if (!item) return res.status(404).json({ message: 'Task not found.' });
-
-    const uid = req.user._id.toString();
-    const existing = item.memberNotes.find(n => n.userId.toString() === uid);
-    if (existing) {
-      existing.note = note;
-    } else {
-      item.memberNotes.push({ userId: req.user._id, note });
-    }
-    await group.save();
-    res.json(item);
+    const requests = group.prayerRequests.map(r => ({
+      _id: r._id,
+      userId: r.userId._id,
+      message: r.message,
+      createdAt: r.createdAt,
+      user: {
+        _id: r.userId._id,
+        displayName: r.userId.displayName,
+        username: r.userId.username,
+        avatarURL: r.userId.avatarURL,
+      },
+    }));
+    res.json(requests);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// PATCH /api/groups/:groupId/note — save/update the shared group note
-router.patch('/:groupId/note', async (req, res) => {
+// POST /api/groups/:groupId/prayer-requests
+router.post('/:groupId/prayer-requests', async (req, res) => {
   try {
-    const { content } = req.body;
-    if (content === undefined) return res.status(400).json({ message: 'content is required.' });
+    const { message } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ message: 'message is required.' });
 
     const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id });
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
-    group.sharedNote.content = content;
-    group.sharedNote.lastEditedBy = req.user._id;
-    group.sharedNote.updatedAt = new Date();
+    group.prayerRequests.push({ userId: req.user._id, message: message.trim() });
     await group.save();
-    res.json(group.sharedNote);
+
+    await group.populate('prayerRequests.userId', 'displayName username avatarURL');
+    const requests = group.prayerRequests.map(r => ({
+      _id: r._id,
+      userId: r.userId._id,
+      message: r.message,
+      createdAt: r.createdAt,
+      user: {
+        _id: r.userId._id,
+        displayName: r.userId.displayName,
+        username: r.userId.username,
+        avatarURL: r.userId.avatarURL,
+      },
+    }));
+    res.status(201).json(requests);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/groups/:groupId/prayer-requests/:requestId
+router.delete('/:groupId/prayer-requests/:requestId', async (req, res) => {
+  try {
+    const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id });
+    if (!group) return res.status(404).json({ message: 'Group not found.' });
+
+    const request = group.prayerRequests.id(req.params.requestId);
+    if (!request) return res.status(404).json({ message: 'Prayer request not found.' });
+    if (request.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You can only delete your own prayer requests.' });
+    }
+
+    request.deleteOne();
+    await group.save();
+
+    await group.populate('prayerRequests.userId', 'displayName username avatarURL');
+    const requests = group.prayerRequests.map(r => ({
+      _id: r._id,
+      userId: r.userId._id,
+      message: r.message,
+      createdAt: r.createdAt,
+      user: {
+        _id: r.userId._id,
+        displayName: r.userId.displayName,
+        username: r.userId.username,
+        avatarURL: r.userId.avatarURL,
+      },
+    }));
+    res.json(requests);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
