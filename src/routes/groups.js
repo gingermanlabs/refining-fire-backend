@@ -207,6 +207,7 @@ router.get('/:groupId/prayer-requests', async (req, res) => {
       .populate('prayerRequests.userId', 'displayName username avatarURL');
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
+    if (!group.prayerRequests) group.prayerRequests = [];
     const requests = group.prayerRequests.map(r => ({
       _id: r._id,
       userId: r.userId._id,
@@ -234,6 +235,7 @@ router.post('/:groupId/prayer-requests', async (req, res) => {
     const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id });
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
+    if (!group.prayerRequests) group.prayerRequests = [];
     group.prayerRequests.push({ userId: req.user._id, message: message.trim() });
     await group.save();
 
@@ -263,6 +265,7 @@ router.delete('/:groupId/prayer-requests/:requestId', async (req, res) => {
     const group = await Group.findOne({ _id: req.params.groupId, memberIds: req.user._id });
     if (!group) return res.status(404).json({ message: 'Group not found.' });
 
+    if (!group.prayerRequests) group.prayerRequests = [];
     const request = group.prayerRequests.id(req.params.requestId);
     if (!request) return res.status(404).json({ message: 'Prayer request not found.' });
     if (request.userId.toString() !== req.user._id.toString()) {
